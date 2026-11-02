@@ -17,6 +17,9 @@ const colors = {
 export const register: Register = on => {
   // Windows only: install the corner font and point Windows Terminal at it (idempotent, see scripts/setup.ps1)
   on('session.start', async ($, e, next) => {
+    await $.command.register({ name: 'message-colors-uninstall', description: 'Remove message-colors and everything it installed (font, Windows Terminal settings, plugin)' })
+    // after /message-colors-uninstall a reload in the same session must not install the font again
+    if ((await $.store.get('uninstalled')) === true) return next(e)
     let isReady = false
     try {
       const { stdout, stderr } = await $.process.run(['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', `${$.plugin.root}/scripts/setup.ps1`])
@@ -32,6 +35,17 @@ export const register: Register = on => {
     }
     await $.store.set('cornersReady', isReady)
     return next(e)
+  })
+
+  on('command.run', { command: 'message-colors-uninstall' }, async $ => {
+    await $.store.set('uninstalled', true)
+    try {
+      const { stdout, stderr } = await $.process.run(['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', `${$.plugin.root}/scripts/uninstall.ps1`])
+      return { text: `${stdout.trim()}${stderr.trim() ? `\nERROR ${stderr.trim()}` : ''}\nRestart Windows Terminal and Claude Code to finish.` }
+    } catch (err) {
+      await $.store.set('uninstalled', false)
+      return { text: `ERROR uninstall failed: ${String(err)}. Run scripts/uninstall.ps1 by hand.` }
+    }
   })
 
   for (const component of Object.keys(colors) as (keyof typeof colors)[]) {

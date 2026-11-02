@@ -37,4 +37,12 @@ Answer `y` to add the marketplace, then pick a scope. Restart Windows Terminal o
 
 ## Uninstall
 
-`/plugin uninstall message-colors`. To remove the font, delete `ClaudeCorners6.ttf` from `%LOCALAPPDATA%\Microsoft\Windows\Fonts`, the `Claude Corners 6 (TrueType)` value under `HKCU\Software\Microsoft\Windows NT\CurrentVersion\Fonts`, and `, Claude Corners 6` from the Windows Terminal font face.
+Run one command in Claude Code:
+
+```
+/message-colors-uninstall
+```
+
+It removes the font files and their registry entries, strips `Claude Corners` from the Windows Terminal font face (and deletes the `.bak-message-colors` backups), deletes `%LOCALAPPDATA%\message-colors`, uninstalls the plugin with its data and removes its marketplace if nothing else is installed from it. It ends with `CLEAN` after re-checking, or `ERROR left: ...`. A font file Windows still holds is deleted at your next sign-in. Restart Windows Terminal afterwards.
+
+Without Claude: `powershell -ExecutionPolicy Bypass -File scripts/uninstall.ps1`.
