@@ -1,0 +1,5 @@
+{
+  "name": "message-colors",
+  "owner": { "name": "serge" },
+  "plugins": [{ "name": "message-colors", "source": "./", "description": "Colored Claude replies with rounded corners" }]
+}
