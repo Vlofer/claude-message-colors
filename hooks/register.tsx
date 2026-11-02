@@ -56,6 +56,15 @@ export const register: Register = on => {
       const { Box, Text } = $.ui.resolve(e)
       const isReady = (await $.store.get('cornersReady')) === true
 
+      // the engine paints its own background under the prompt text, so a plain prompt is drawn here in full
+      if (component === 'UserMessage' && !e.props.task && !e.props.from) {
+        return (
+          <Box backgroundColor={BLUE} paddingX={1} marginTop={1}>
+            <Text backgroundColor={BLUE} color="text">❯ {e.props.text}</Text>
+          </Box>
+        )
+      }
+
       if (component !== 'AssistantMessage') {
         return <Box backgroundColor={colors[component]}>{await next(e)}</Box>
       }
