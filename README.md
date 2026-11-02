@@ -35,26 +35,6 @@ Answer `y` to add the marketplace, then pick a scope. Restart Windows Terminal o
 - Colors: `REPLY_BG` and `VIOLET` at the top of `hooks/register.tsx`.
 - Font: edit the constants in `make_font.py` and run `python make_font.py <out.ttf> "<family name>"` (standard library only).
 
-## Uninstall
-
-Run one command in Claude Code (both names do the same):
-
-```
-/message-colors:uninstall
-/message-colors-uninstall
-```
-
-"Unknown command" means an older version is installed. Update first, then start a new session:
-
-```
-claude plugin marketplace update message-colors
-claude plugin update message-colors@message-colors
-```
-
-It removes the font files and their registry entries, strips `Claude Corners` from the Windows Terminal font face (and deletes the `.bak-message-colors` backups), deletes `%LOCALAPPDATA%\message-colors`, uninstalls the plugin with its data and removes its marketplace if nothing else is installed from it. It ends with `CLEAN` after re-checking, or `ERROR left: ...`. A font file Windows still holds is deleted at your next sign-in. Restart Windows Terminal afterwards.
-
-Without Claude: `powershell -ExecutionPolicy Bypass -File scripts/uninstall.ps1`.
-
 ## Customize colors and font
 
 Changes apply at once and are remembered. Every command also works with a dash (`/message-colors-bg`).
@@ -98,3 +78,23 @@ Changes apply at once and are remembered. Every command also works with a dash (
 - The engine draws replies and tool rows itself and lets a plugin change only their background. Tool text color cannot be changed.
 - A reply gets its own text color only if you set `fg reply`; it is then shown as plain text without markdown formatting (bold, code, lists).
 - `font` changes the whole terminal, not single messages. `font reset` returns to Cascadia Mono.
+
+## Uninstall
+
+Run one command in Claude Code (both names do the same):
+
+```
+/message-colors:uninstall
+/message-colors-uninstall
+```
+
+"Unknown command" means an older version is installed. Update first, then start a new session:
+
+```
+claude plugin marketplace update message-colors
+claude plugin update message-colors@message-colors
+```
+
+It removes the font files and their registry entries, strips `Claude Corners` from the Windows Terminal font face (and deletes the `.bak-message-colors` backups), deletes `%LOCALAPPDATA%\message-colors`, uninstalls the plugin with its data and removes its marketplace if nothing else is installed from it. It ends with `CLEAN` after re-checking, or `ERROR left: ...`. A font file Windows still holds is deleted at your next sign-in. Restart Windows Terminal afterwards.
+
+Without Claude: `powershell -ExecutionPolicy Bypass -File scripts/uninstall.ps1`.
