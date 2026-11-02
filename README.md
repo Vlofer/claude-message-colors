@@ -37,10 +37,18 @@ Answer `y` to add the marketplace, then pick a scope. Restart Windows Terminal o
 
 ## Uninstall
 
-Run one command in Claude Code:
+Run one command in Claude Code (both names do the same):
 
 ```
+/message-colors:uninstall
 /message-colors-uninstall
+```
+
+"Unknown command" means an older version is installed. Update first, then start a new session:
+
+```
+claude plugin marketplace update message-colors
+claude plugin update message-colors@message-colors
 ```
 
 It removes the font files and their registry entries, strips `Claude Corners` from the Windows Terminal font face (and deletes the `.bak-message-colors` backups), deletes `%LOCALAPPDATA%\message-colors`, uninstalls the plugin with its data and removes its marketplace if nothing else is installed from it. It ends with `CLEAN` after re-checking, or `ERROR left: ...`. A font file Windows still holds is deleted at your next sign-in. Restart Windows Terminal afterwards.
