@@ -26,7 +26,7 @@ export const register: Register = on => {
       // corners are drawn only on a run that changed nothing: after a change Windows Terminal still has to be restarted
       isReady = lines.includes('READY') && !isChanged
       if (error) $.ui.toast(`message-colors: ${error} (log: %LOCALAPPDATA%/message-colors/setup.log)`)
-      else if (isChanged) $.ui.toast('message-colors: font set up - close all Windows Terminal windows, reopen, start a new session')
+      else if (isChanged) $.ui.toast('message-colors: font set up - close all Windows Terminal windows, reopen, start a new session (sign out of Windows if corners still show ? boxes)')
     } catch {
       // not Windows or no PowerShell: replies get square corners
     }

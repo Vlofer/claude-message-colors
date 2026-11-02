@@ -21,6 +21,16 @@ try {
     New-ItemProperty $regKey -Name $regName -Value $dst -PropertyType String -Force | Out-Null
     Say 'font installed'
   }
+  # Explorer's "Install" also does this: without it a per-user font can stay invisible to Windows Terminal until sign-out
+  try {
+    Add-Type -Namespace MC -Name Win -MemberDefinition @'
+[DllImport("gdi32.dll", CharSet = CharSet.Unicode)] public static extern int AddFontResourceW(string path);
+[DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr SendMessageTimeoutW(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
+'@
+    [void][MC.Win]::AddFontResourceW($dst)
+    $r = [IntPtr]::Zero
+    [void][MC.Win]::SendMessageTimeoutW([IntPtr]0xFFFF, 0x001D, [IntPtr]::Zero, [IntPtr]::Zero, 2, 1000, [ref]$r)
+  } catch { Say "ERROR font refresh: $($_.Exception.Message)" }
   $files = @(
     "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json",
     "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminalPreview_8wekyb3d8bbwe\LocalState\settings.json",
