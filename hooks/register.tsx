@@ -3,7 +3,10 @@ import type { Register } from 'claude-code'
 const REPLY_BG = '#7a5c1e' // Claude's replies: vivid amber-brown; light default text stays readable (~6:1)
 const VIOLET = '#221d33' // tool rows and results
 
+const BLUE = '#1e3a5f' // the person's own prompts
+
 const colors = {
+  UserMessage: BLUE,
   AssistantMessage: REPLY_BG,
   ToolUse: VIOLET,
   ToolGroup: VIOLET,
@@ -15,7 +18,8 @@ export const register: Register = on => {
   // Windows only: install the corner font and point Windows Terminal at it (idempotent, see scripts/setup.ps1)
   on('session.start', async ($, e, next) => {
     try {
-      await $.process.run(['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', `${$.plugin.root}/scripts/setup.ps1`])
+      const { stdout } = await $.process.run(['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', `${$.plugin.root}/scripts/setup.ps1`])
+      if (stdout.trim()) $.ui.toast(`message-colors: ${stdout.trim().split('\n')[0]} - restart Windows Terminal`)
     } catch {
       // not Windows or no PowerShell: replies just get square corners
     }

@@ -18,11 +18,19 @@ foreach ($f in $files) {
   if (-not (Test-Path $f)) { continue }
   $t = [IO.File]::ReadAllText($f)
   if ($t -match [regex]::Escape($family)) { continue }
-  # first "face" inside "defaults" gets the fallback; no face there -> leave settings alone
-  $re = [regex]'("defaults"\s*:\s*\{[^}]*?"face"\s*:\s*")([^"]*)(")'
-  if (-not $re.IsMatch($t)) { "no defaults font face in $f - add `"$family`" to the font face by hand"; continue }
+  # a fresh Windows Terminal has no font face: Cascadia Mono is its default, keep it first
+  $face = "Cascadia Mono, $family"
+  $withFace = [regex]'("defaults"\s*:\s*\{[^}]*?"face"\s*:\s*")([^"]*)(")'
+  $withFont = [regex]'("defaults"\s*:\s*\{[^}]*?"font"\s*:\s*\{)(\s*)(\}?)'
+  $bare = [regex]'("defaults"\s*:\s*\{)(\s*)(\}?)'
+  if ($withFace.IsMatch($t)) {
+    $new = $withFace.Replace($t, { param($m) $m.Groups[1].Value + $m.Groups[2].Value + ', ' + $family + $m.Groups[3].Value }, 1)
+  } elseif ($withFont.IsMatch($t)) {
+    $new = $withFont.Replace($t, { param($m) $m.Groups[1].Value + " `"face`": `"$face`"" + $(if ($m.Groups[3].Value) { ' ' } else { ',' }) + $m.Groups[2].Value + $m.Groups[3].Value }, 1)
+  } elseif ($bare.IsMatch($t)) {
+    $new = $bare.Replace($t, { param($m) $m.Groups[1].Value + " `"font`": { `"face`": `"$face`" }" + $(if ($m.Groups[3].Value) { ' ' } else { ',' }) + $m.Groups[2].Value + $m.Groups[3].Value }, 1)
+  } else { "no profiles.defaults in $f - add `"$family`" to the font face by hand"; continue }
   Copy-Item $f "$f.bak-message-colors" -Force
-  $new = $re.Replace($t, { param($m) $m.Groups[1].Value + $m.Groups[2].Value + ', ' + $family + $m.Groups[3].Value }, 1)
   [IO.File]::WriteAllText($f, $new, (New-Object Text.UTF8Encoding $false))
   "updated $f"
 }
