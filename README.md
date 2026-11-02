@@ -3,7 +3,9 @@
 A Claude Code plugin that restyles the terminal UI:
 
 - Claude's replies get an amber-brown background with **rounded corners**.
+- Your own prompts get a blue background.
 - Tool calls, progress and results get a dark violet background.
+- All colors and the font can be changed with `/message-colors:` commands.
 
 Terminal only. Other surfaces (desktop, VS Code) keep the normal look.
 
@@ -17,22 +19,22 @@ Answer `y` to add the marketplace, then pick a scope. Restart Windows Terminal o
 
 ## How it works
 
-- `hooks/register.tsx` hooks `ui.render` and wraps replies and tool rows in colored boxes.
+- `hooks/register.tsx` hooks `ui.render` and draws your prompts, replies and tool rows in colored boxes (colors and settings logic: `hooks/colors.ts`).
 - Terminals cannot draw a rounded corner on a background color, so the plugin ships a tiny font, **Claude Corners** (`assets/ClaudeCorners6.ttf`), with four quarter-circle glyphs (U+E9F0 to U+E9F3). The reply box draws them in its corners.
-- On the first session start the plugin runs `scripts/setup.ps1`, which:
+- On every session start the plugin runs `scripts/setup.ps1`, which:
   1. copies the font to `%LOCALAPPDATA%\Microsoft\Windows\Fonts` and registers it for the current user (no admin rights);
-  2. appends `Claude Corners 6` as a fallback face to `profiles.defaults.font.face` in the Windows Terminal `settings.json` (a backup `settings.json.bak-message-colors` is made first).
+  2. appends `Claude Corners 6` as a fallback face to every font face in the Windows Terminal `settings.json` (a fresh terminal without a face gets `Cascadia Mono, Claude Corners 6`); a backup `settings.json.bak-message-colors` is made first.
 
-  The script is idempotent: later sessions change nothing.
+  The script is idempotent: once everything is set up, later sessions change nothing. The corners are drawn only after that, so after the first run restart Windows Terminal and start a new session. Problems are written to `%LOCALAPPDATA%\message-colors\setup.log` and shown as a toast.
 
 ## Requirements and limits
 
 - Rounded corners need **Windows + Windows Terminal**. Elsewhere the colors still work and the corners are square.
-- If your Windows Terminal `profiles.defaults` has no `font.face`, the script does not edit the settings and prints a hint: add `, Claude Corners 6` to your font face by hand.
+- Until the font is set up and Windows Terminal is restarted, the reply box has square corners instead of `?` boxes.
 
 ## Customize the code
 
-- Default colors: `DEFAULT_BG` in `hooks/colors.ts` (or use the commands below, no editing needed).
+- Default colors: `DEFAULT_BG` in `hooks/colors.ts` (the commands below need no editing). Tests: `node hooks/colors.test.ts`.
 - Font: edit the constants in `make_font.py` and run `python make_font.py <out.ttf> "<family name>"` (standard library only).
 
 ## Customize colors and font
