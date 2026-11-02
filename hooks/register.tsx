@@ -17,12 +17,20 @@ const colors = {
 export const register: Register = on => {
   // Windows only: install the corner font and point Windows Terminal at it (idempotent, see scripts/setup.ps1)
   on('session.start', async ($, e, next) => {
+    let isReady = false
     try {
-      const { stdout } = await $.process.run(['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', `${$.plugin.root}/scripts/setup.ps1`])
-      if (stdout.trim()) $.ui.toast(`message-colors: ${stdout.trim().split('\n')[0]} - restart Windows Terminal`)
+      const { stdout, stderr } = await $.process.run(['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', `${$.plugin.root}/scripts/setup.ps1`])
+      const lines = stdout.split('\n').map(l => l.trim()).filter(Boolean)
+      const error = lines.find(l => l.startsWith('ERROR')) ?? (stderr.trim() ? `ERROR ${stderr.trim().split('\n')[0]}` : undefined)
+      const isChanged = lines.some(l => l === 'font installed' || l.startsWith('updated '))
+      // corners are drawn only on a run that changed nothing: after a change Windows Terminal still has to be restarted
+      isReady = lines.includes('READY') && !isChanged
+      if (error) $.ui.toast(`message-colors: ${error} (log: %LOCALAPPDATA%/message-colors/setup.log)`)
+      else if (isChanged) $.ui.toast('message-colors: font set up - close all Windows Terminal windows, reopen, start a new session')
     } catch {
-      // not Windows or no PowerShell: replies just get square corners
+      // not Windows or no PowerShell: replies get square corners
     }
+    await $.store.set('cornersReady', isReady)
     return next(e)
   })
 
@@ -32,6 +40,7 @@ export const register: Register = on => {
       if (e.surface !== 'terminal') return next(e)
 
       const { Box, Text } = $.ui.resolve(e)
+      const isReady = (await $.store.get('cornersReady')) === true
 
       if (component !== 'AssistantMessage') {
         return <Box backgroundColor={colors[component]}>{await next(e)}</Box>
@@ -42,9 +51,9 @@ export const register: Register = on => {
       // corner cells are empty, so the box just has square-ish corners.
       const edge = (left: string, right: string) => (
         <Box height={1}>
-          <Text color={REPLY_BG}>{left}</Text>
+          {isReady ? <Text color={REPLY_BG}>{left}</Text> : <Text backgroundColor={REPLY_BG}> </Text>}
           <Box flexGrow={1} backgroundColor={REPLY_BG} />
-          <Text color={REPLY_BG}>{right}</Text>
+          {isReady ? <Text color={REPLY_BG}>{right}</Text> : <Text backgroundColor={REPLY_BG}> </Text>}
         </Box>
       )
       return (

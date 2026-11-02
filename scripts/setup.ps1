@@ -1,36 +1,58 @@
 # Idempotent: installs the Claude Corners font per user and adds it as a fallback face in Windows Terminal.
+# Output: one line per change ("font installed", "updated <file>"), problems as "ERROR ...", and a last line
+# "READY" only when the font is registered and every Windows Terminal settings file already names it.
 $ErrorActionPreference = 'Stop'
-$family = 'Claude Corners 6'
-$src = Join-Path $PSScriptRoot '..\assets\ClaudeCorners6.ttf'
-$dir = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows\Fonts'
-$dst = Join-Path $dir 'ClaudeCorners6.ttf'
-if (-not (Test-Path $dst)) {
-  New-Item -ItemType Directory -Force $dir | Out-Null
-  Copy-Item $src $dst
-  New-ItemProperty 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Fonts' -Name "$family (TrueType)" -Value $dst -PropertyType String -Force | Out-Null
-  'font installed'
+$logDir = Join-Path $env:LOCALAPPDATA 'message-colors'
+New-Item -ItemType Directory -Force $logDir | Out-Null
+$log = Join-Path $logDir 'setup.log'
+$out = New-Object Collections.Generic.List[string]
+function Say($s) { $out.Add($s) }
+try {
+  $family = 'Claude Corners 6'
+  $src = Join-Path $PSScriptRoot '..\assets\ClaudeCorners6.ttf'
+  $dir = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows\Fonts'
+  $dst = Join-Path $dir 'ClaudeCorners6.ttf'
+  $regKey = 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Fonts'
+  $regName = "$family (TrueType)"
+  $registered = (Test-Path $dst) -and ((Get-ItemProperty $regKey -ErrorAction SilentlyContinue).$regName -eq $dst)
+  if (-not $registered) {
+    New-Item -ItemType Directory -Force $dir | Out-Null
+    if (-not (Test-Path $dst)) { Copy-Item $src $dst }
+    New-ItemProperty $regKey -Name $regName -Value $dst -PropertyType String -Force | Out-Null
+    Say 'font installed'
+  }
+  $files = @(
+    "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json",
+    "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminalPreview_8wekyb3d8bbwe\LocalState\settings.json",
+    "$env:LOCALAPPDATA\Microsoft\Windows Terminal\settings.json") | Where-Object { Test-Path $_ }
+  if (-not $files) { Say 'ERROR no Windows Terminal settings.json found' }
+  $allPatched = [bool]$files
+  foreach ($f in $files) {
+    $t = [IO.File]::ReadAllText($f)
+    # a fresh Windows Terminal has no font face: Cascadia Mono is its default, keep it first
+    $face = "Cascadia Mono, $family"
+    $withFace = [regex]'("defaults"\s*:\s*\{[^}]*?"face"\s*:\s*")'
+    $withFont = [regex]'("defaults"\s*:\s*\{[^}]*?"font"\s*:\s*\{)(\s*)(\}?)'
+    $bare = [regex]'("defaults"\s*:\s*\{)(\s*)(\}?)'
+    $new = $t
+    if ($withFace.IsMatch($t)) {
+      # defaults already has a face: the all-faces pass below appends to it
+    } elseif ($withFont.IsMatch($t)) {
+      $new = $withFont.Replace($t, { param($m) $m.Groups[1].Value + " `"face`": `"$face`"" + $(if ($m.Groups[3].Value) { ' ' } else { ',' }) + $m.Groups[2].Value + $m.Groups[3].Value }, 1)
+    } elseif ($bare.IsMatch($t)) {
+      $new = $bare.Replace($t, { param($m) $m.Groups[1].Value + " `"font`": { `"face`": `"$face`" }" + $(if ($m.Groups[3].Value) { ' ' } else { ',' }) + $m.Groups[2].Value + $m.Groups[3].Value }, 1)
+    } else { Say "ERROR no profiles.defaults in $f - add `"$family`" to the font face by hand"; $allPatched = $false; continue }
+    # profiles can override defaults, so every face (and the old fontFace key) gets the fallback
+    $new = [regex]::Replace($new, '("(?:face|fontFace)"\s*:\s*")([^"]*)(")', { param($m) if ($m.Groups[2].Value.Contains($family)) { $m.Value } else { $m.Groups[1].Value + $m.Groups[2].Value + ', ' + $family + $m.Groups[3].Value } })
+    if ($new -ne $t) {
+      Copy-Item $f "$f.bak-message-colors" -Force
+      [IO.File]::WriteAllText($f, $new, (New-Object Text.UTF8Encoding $false))
+      Say "updated $f"
+    }
+  }
+  if ($allPatched -and -not ($out | Where-Object { $_ -notlike 'ERROR*' })) { Say 'READY' }
+} catch {
+  Say "ERROR $($_.Exception.Message)"
 }
-$files = @(
-  "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json",
-  "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminalPreview_8wekyb3d8bbwe\LocalState\settings.json",
-  "$env:LOCALAPPDATA\Microsoft\Windows Terminal\settings.json")
-foreach ($f in $files) {
-  if (-not (Test-Path $f)) { continue }
-  $t = [IO.File]::ReadAllText($f)
-  if ($t -match [regex]::Escape($family)) { continue }
-  # a fresh Windows Terminal has no font face: Cascadia Mono is its default, keep it first
-  $face = "Cascadia Mono, $family"
-  $withFace = [regex]'("defaults"\s*:\s*\{[^}]*?"face"\s*:\s*")([^"]*)(")'
-  $withFont = [regex]'("defaults"\s*:\s*\{[^}]*?"font"\s*:\s*\{)(\s*)(\}?)'
-  $bare = [regex]'("defaults"\s*:\s*\{)(\s*)(\}?)'
-  if ($withFace.IsMatch($t)) {
-    $new = $withFace.Replace($t, { param($m) $m.Groups[1].Value + $m.Groups[2].Value + ', ' + $family + $m.Groups[3].Value }, 1)
-  } elseif ($withFont.IsMatch($t)) {
-    $new = $withFont.Replace($t, { param($m) $m.Groups[1].Value + " `"face`": `"$face`"" + $(if ($m.Groups[3].Value) { ' ' } else { ',' }) + $m.Groups[2].Value + $m.Groups[3].Value }, 1)
-  } elseif ($bare.IsMatch($t)) {
-    $new = $bare.Replace($t, { param($m) $m.Groups[1].Value + " `"font`": { `"face`": `"$face`" }" + $(if ($m.Groups[3].Value) { ' ' } else { ',' }) + $m.Groups[2].Value + $m.Groups[3].Value }, 1)
-  } else { "no profiles.defaults in $f - add `"$family`" to the font face by hand"; continue }
-  Copy-Item $f "$f.bak-message-colors" -Force
-  [IO.File]::WriteAllText($f, $new, (New-Object Text.UTF8Encoding $false))
-  "updated $f"
-}
+$out | Set-Content $log -Encoding utf8
+$out
