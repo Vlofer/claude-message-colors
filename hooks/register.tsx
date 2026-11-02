@@ -1,22 +1,27 @@
 import type { Register } from 'claude-code'
 
-const REPLY_BG = '#7a5c1e' // Claude's replies: vivid amber-brown; light default text stays readable (~6:1)
-const VIOLET = '#221d33' // tool rows and results
+import { apply, describe, parseArgs, resolve, type Settings, type Slot } from './colors.ts'
 
-const BLUE = '#1e3a5f' // the person's own prompts
+// which customizable slot each drawn component belongs to (defaults live in colors.ts)
+const slots = {
+  UserMessage: 'user',
+  AssistantMessage: 'reply',
+  ToolUse: 'tool',
+  ToolGroup: 'tool',
+  ToolProgress: 'tool',
+  ToolResult: 'tool',
+} as const satisfies Record<string, Slot>
 
-const colors = {
-  UserMessage: BLUE,
-  AssistantMessage: REPLY_BG,
-  ToolUse: VIOLET,
-  ToolGroup: VIOLET,
-  ToolProgress: VIOLET,
-  ToolResult: VIOLET,
-} as const
+const run = ($: { plugin: { root: string }; process: { run: (a: string[]) => Promise<{ stdout: string; stderr: string }> } }, script: string, ...args: string[]) =>
+  $.process.run(['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', `${$.plugin.root}/scripts/${script}`, ...args])
 
 export const register: Register = on => {
   // Windows only: install the corner font and point Windows Terminal at it (idempotent, see scripts/setup.ps1)
   on('session.start', async ($, e, next) => {
+    // dash twins of the /message-colors:<name> commands, in case the engine only hands registered names to command.run
+    for (const [name, description] of [['bg', 'Set the background color of prompts, replies or tool runs'], ['fg', 'Set the text color of prompts or replies'], ['font', 'Change the Windows Terminal font']]) {
+      await $.command.register({ name: `message-colors-${name}`, description, argumentHint: '<args>' })
+    }
     await $.command.register({ name: 'message-colors-uninstall', description: 'Remove message-colors and everything it installed (font, Windows Terminal settings, plugin)' })
     // after /message-colors-uninstall a reload in the same session must not install the font again
     if ((await $.store.get('uninstalled')) === true) return next(e)
@@ -37,6 +42,31 @@ export const register: Register = on => {
     return next(e)
   })
 
+  // /message-colors:bg and :fg - settings are kept in the plugin store and read on every draw
+  for (const kind of ['bg', 'fg'] as const) {
+    for (const command of [`message-colors:${kind}`, `message-colors-${kind}`]) on('command.run', { command }, async ($, e) => {
+      const parsed = parseArgs(e.args, kind)
+      const settings = ((await $.store.get('colors')) ?? {}) as Settings
+      if (!parsed.ok) return { text: parsed.error }
+      if (parsed.show) return { text: describe(settings) }
+      const next = apply(settings, kind, parsed.slot, parsed.tint)
+      await $.store.set('colors', next)
+      const note = kind === 'fg' && parsed.tint && parsed.slot !== 'user' ? '\nNote: a reply with its own text color is drawn as plain text (no markdown formatting).' : ''
+      return { text: `${describe(next)}${note}` }
+    })
+  }
+
+  for (const command of ['message-colors:font', 'message-colors-font']) on('command.run', { command }, async ($, e) => {
+    const face = e.args.trim()
+    if (!/^(reset|[\w .+-]{1,60})$/.test(face)) return { text: 'Usage: /message-colors:font <font name, e.g. Consolas>  |  reset' }
+    try {
+      const { stdout, stderr } = await run($, 'font.ps1', face)
+      return { text: `${stdout.trim()}${stderr.trim() ? `\nERROR ${stderr.trim()}` : ''}` }
+    } catch (err) {
+      return { text: `ERROR font change failed: ${String(err)}` }
+    }
+  })
+
   on('command.run', { command: 'message-colors-uninstall' }, async $ => {
     await $.store.set('uninstalled', true)
     try {
@@ -48,25 +78,26 @@ export const register: Register = on => {
     }
   })
 
-  for (const component of Object.keys(colors) as (keyof typeof colors)[]) {
+  for (const component of Object.keys(slots) as (keyof typeof slots)[]) {
     on('ui.render', { component }, async ($, e, next) => {
       // other surfaces keep the engine's own drawing
       if (e.surface !== 'terminal') return next(e)
 
       const { Box, Text } = $.ui.resolve(e)
       const isReady = (await $.store.get('cornersReady')) === true
+      const { bg, fg } = resolve(((await $.store.get('colors')) ?? {}) as Settings, slots[component])
 
       // the engine paints its own background under the prompt text, so a plain prompt is drawn here in full
       if (component === 'UserMessage' && !e.props.task && !e.props.from) {
         return (
-          <Box backgroundColor={BLUE} paddingX={1} marginTop={1}>
-            <Text backgroundColor={BLUE} color="text">❯ {e.props.text}</Text>
+          <Box backgroundColor={bg} paddingX={1} marginTop={1}>
+            <Text backgroundColor={bg} color={fg ?? 'text'}>❯ {e.props.text}</Text>
           </Box>
         )
       }
 
       if (component !== 'AssistantMessage') {
-        return <Box backgroundColor={colors[component]}>{await next(e)}</Box>
+        return <Box backgroundColor={bg}>{await next(e)}</Box>
       }
 
       // Real round corners: U+E9F0..E9F3 are quarter-circle glyphs from the user's own "Claude Corners" font
@@ -74,15 +105,15 @@ export const register: Register = on => {
       // corner cells are empty, so the box just has square-ish corners.
       const edge = (left: string, right: string) => (
         <Box height={1}>
-          {isReady ? <Text color={REPLY_BG}>{left}</Text> : <Text backgroundColor={REPLY_BG}> </Text>}
-          <Box flexGrow={1} backgroundColor={REPLY_BG} />
-          {isReady ? <Text color={REPLY_BG}>{right}</Text> : <Text backgroundColor={REPLY_BG}> </Text>}
+          {isReady ? <Text color={bg}>{left}</Text> : <Text backgroundColor={bg}> </Text>}
+          <Box flexGrow={1} backgroundColor={bg} />
+          {isReady ? <Text color={bg}>{right}</Text> : <Text backgroundColor={bg}> </Text>}
         </Box>
       )
       return (
         <Box flexDirection="column">
           {edge('', '')}
-          <Box backgroundColor={REPLY_BG} paddingX={1}>{await next(e)}</Box>
+          <Box backgroundColor={bg} paddingX={1}>{fg ? <Text color={fg}>{e.props.text}</Text> : await next(e)}</Box>
           {edge('', '')}
         </Box>
       )

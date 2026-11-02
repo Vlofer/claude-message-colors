@@ -1,1 +1,1 @@
-{ "name": "message-colors", "version": "0.5.2", "description": "Background colors and rounded corners for Claude replies in the terminal (auto-installs its font on Windows)" }
+{ "name": "message-colors", "version": "0.6.0", "description": "Background colors and rounded corners for Claude replies in the terminal (auto-installs its font on Windows)" }

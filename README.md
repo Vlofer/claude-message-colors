@@ -54,3 +54,18 @@ claude plugin update message-colors@message-colors
 It removes the font files and their registry entries, strips `Claude Corners` from the Windows Terminal font face (and deletes the `.bak-message-colors` backups), deletes `%LOCALAPPDATA%\message-colors`, uninstalls the plugin with its data and removes its marketplace if nothing else is installed from it. It ends with `CLEAN` after re-checking, or `ERROR left: ...`. A font file Windows still holds is deleted at your next sign-in. Restart Windows Terminal afterwards.
 
 Without Claude: `powershell -ExecutionPolicy Bypass -File scripts/uninstall.ps1`.
+
+## Customize colors and font
+
+Changes apply at once and are remembered. Every command also works with a dash (`/message-colors-bg`).
+
+```
+/message-colors:bg <user|reply|tool> <#hex> [alpha%]   background of your prompts / Claude's replies / tool runs
+/message-colors:fg <user|reply> <#hex> [alpha%]        text color of your prompts / Claude's replies
+/message-colors:font <font name>                       Windows Terminal font (keeps the rounded corners)
+```
+
+- `reset` after a target (`/message-colors:bg tool reset`) or alone (`/message-colors:fg reset`) restores the defaults; a command without arguments shows the current values.
+- A terminal has no real transparency: `alpha` fades the color toward what is behind it (backgrounds toward the terminal's black, text toward its own background).
+- The engine draws replies and tool rows itself and lets a plugin change only their background. A reply gets a text color only if you set `fg reply`, and then it is shown as plain text without markdown formatting. Tool text color cannot be changed.
+- `font` changes the whole terminal, not single messages.
