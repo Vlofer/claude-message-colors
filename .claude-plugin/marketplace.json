@@ -1,5 +1,6 @@
 {
   "name": "message-colors",
-  "owner": { "name": "serge" },
-  "plugins": [{ "name": "message-colors", "source": "./", "description": "Colored Claude replies with rounded corners" }]
+  "description": "Colored prompts and replies with rounded corners for Claude Code in the terminal",
+  "owner": { "name": "Vlofer" },
+  "plugins": [{ "name": "message-colors", "source": "./", "description": "Colored Claude replies with rounded corners", "author": { "name": "Vlofer" } }]
 }
