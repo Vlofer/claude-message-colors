@@ -30,9 +30,9 @@ Answer `y` to add the marketplace, then pick a scope. Restart Windows Terminal o
 - Rounded corners need **Windows + Windows Terminal**. Elsewhere the colors still work and the corners are square.
 - If your Windows Terminal `profiles.defaults` has no `font.face`, the script does not edit the settings and prints a hint: add `, Claude Corners 6` to your font face by hand.
 
-## Customize
+## Customize the code
 
-- Colors: `REPLY_BG` and `VIOLET` at the top of `hooks/register.tsx`.
+- Default colors: `DEFAULT_BG` in `hooks/colors.ts` (or use the commands below, no editing needed).
 - Font: edit the constants in `make_font.py` and run `python make_font.py <out.ttf> "<family name>"` (standard library only).
 
 ## Customize colors and font
