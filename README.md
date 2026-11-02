@@ -60,12 +60,41 @@ Without Claude: `powershell -ExecutionPolicy Bypass -File scripts/uninstall.ps1`
 Changes apply at once and are remembered. Every command also works with a dash (`/message-colors-bg`).
 
 ```
-/message-colors:bg <user|reply|tool> <#hex> [alpha%]   background of your prompts / Claude's replies / tool runs
-/message-colors:fg <user|reply> <#hex> [alpha%]        text color of your prompts / Claude's replies
+/message-colors:bg <user|reply|tool> <#hex> [alpha%]   background
+/message-colors:fg <user|reply> <#hex> [alpha%]        text color
 /message-colors:font <font name>                       Windows Terminal font (keeps the rounded corners)
 ```
 
-- `reset` after a target (`/message-colors:bg tool reset`) or alone (`/message-colors:fg reset`) restores the defaults; a command without arguments shows the current values.
-- A terminal has no real transparency: `alpha` fades the color toward what is behind it (backgrounds toward the terminal's black, text toward its own background).
-- The engine draws replies and tool rows itself and lets a plugin change only their background. A reply gets a text color only if you set `fg reply`, and then it is shown as plain text without markdown formatting. Tool text color cannot be changed.
-- `font` changes the whole terminal, not single messages.
+### Targets
+
+`<user|reply|tool>` means "pick one of these three":
+
+| Target | What it colors | Default |
+|---|---|---|
+| `user` | your own prompts | blue `#1e3a5f` |
+| `reply` | Claude's replies | amber-brown `#7a5c1e` |
+| `tool` | tool calls and their results (`bg` only) | violet `#221d33` |
+
+### Arguments
+
+- `#hex` is `#rgb` or `#rrggbb`, for example `#2a4d2a`.
+- `alpha` is optional, 0-100 (`70` or `70%`), default 100. A terminal has no real transparency, so it fades the color toward what is behind it: a background toward the terminal's black, a text color toward its own background.
+- `reset` restores the defaults: after a target (`/message-colors:bg tool reset`) or alone for all targets (`/message-colors:fg reset`).
+- A command without arguments shows the current values.
+
+### Examples
+
+```
+/message-colors:bg user #1e3a5f
+/message-colors:bg reply #2a4d2a 70%
+/message-colors:fg user #ffcc00
+/message-colors:bg tool reset
+/message-colors:font Consolas
+/message-colors:font reset
+```
+
+### Limits
+
+- The engine draws replies and tool rows itself and lets a plugin change only their background. Tool text color cannot be changed.
+- A reply gets its own text color only if you set `fg reply`; it is then shown as plain text without markdown formatting (bold, code, lists).
+- `font` changes the whole terminal, not single messages. `font reset` returns to Cascadia Mono.
